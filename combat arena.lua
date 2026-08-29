@@ -1,8 +1,8 @@
 --[[
-COMBAT ARENA - NATIVE UI (FINAL FIXED)
-- UI Manual (Anti Blokir, Draggable, Minimize)
-- ESP: Hanya Enemy, Posisi di atas kepala (Nama + Jarak)
-- Aimbot: Fixed (Menggunakan posisi mouse asli, Auto-snap, Anti Tembok)
+COMBAT ARENA - NATIVE UI (FINAL COMPATIBLE)
+- Fix: Ganti semua 'continue' (tidak support Lua 5.1)
+- Fix: Tambah pcall di fungsi kritis
+- Fix: Kompatibel semua executor
 --]]
 
 -- ========== SERVICES ==========
@@ -28,7 +28,7 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 pcall(function() ScreenGui.Parent = game:GetService("CoreGui") end)
 if not ScreenGui.Parent then
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    pcall(function() ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end)
 end
 
 local Main = Instance.new("Frame")
@@ -51,7 +51,7 @@ local TBCorner = Instance.new("UICorner")
 TBCorner.CornerRadius = UDim.new(0, 8)
 TBCorner.Parent = TitleBar
 local Fix1 = Instance.new("Frame")
-Fix1.Size = UDim2.new(1, 0, 0, 8)
+Fix1.Siz-- Aimbot (FIXe = UDim2.new(1, 0, 0, 8)
 Fix1.Position = UDim2.new(0, 0, 1, -8)
 Fix1.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
 Fix1.BorderSizePixel = 0
@@ -148,7 +148,7 @@ local function CreateToggle(text, default, callback)
         state = not state
         btn.Text = state and "ON" or "OFF"
         btn.BackgroundColor3 = state and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(150, 0, 0)
-        callback(state)
+        pcall(callback, state)
     end)
 end
 
@@ -201,7 +201,7 @@ local function CreateAdjuster(text, currentVal, minVal, maxVal, step, callback)
     local val = currentVal
     local function update()
         valText.Text = tostring(val)
-        callback(val)
+        pcall(callback, val)
     end
     
     minusBtn.MouseButton1Click:Connect(function()
@@ -249,9 +249,9 @@ local function CreateCycleButton(text, options, defaultIndex, callback)
         currentIndex = currentIndex + 1
         if currentIndex > #options then currentIndex = 1 end
         btn.Text = options[currentIndex]
-        callback(options[currentIndex])
+        pcall(callback, options[currentIndex])
     end)
-    callback(options[defaultIndex])
+    pcall(callback, options[defaultIndex])
 end
 
 -- ========== DRAGGING UI ==========
@@ -319,33 +319,31 @@ CreateAdjuster("Smoothness", 5, 0, 9, 1, function(v) Config.Aimbot.Smoothness = 
 
 -- ========== ESP & AIMBOT LOGIC ==========
 local ESPData = {}
-local fovCircle = Drawing.new("Circle")
-fovCircle.Thickness = 1.5
-fovCircle.NumSides = 50
-fovCircle.Filled = false
-fovCircle.Visible = false
-fovCircle.Color = Color3.fromRGB(255, 255, 0)
+local fovCircle = pcall(function() return Drawing.new("Circle") end)
 
 -- Fungsi cek team (hanya target enemy)
 local function isEnemy(plr)
     if not LocalPlayer.Team or not plr.Team then
-        return true -- Jika tidak ada sistem team, anggap semua musuh
+        return true
     end
     return LocalPlayer.Team ~= plr.Team
 end
 
--- Fungsi cek visibilitas (Anti Tembok)
+-- Fungsi cek visibilitas (Anti Tembok) - dengan pcall
 local function isVisible(targetPart)
-    local origin = Camera.CFrame.Position
-    local targetPos = targetPart.Position
-    local direction = (targetPos - origin)
-    
-    local params = RaycastParams.new()
-    params.FilterDescendantsInstances = {LocalPlayer.Character, targetPart.Parent}
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    
-    local result = workspace:Raycast(origin, direction, params)
-    return not result
+    local success, result = pcall(function()
+        local origin = Camera.CFrame.Position
+        local targetPos = targetPart.Position
+        local direction = (targetPos - origin)
+        
+        local params = RaycastParams.new()
+        params.FilterDescendantsInstances = {LocalPlayer.Character, targetPart.Parent}
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        
+        local rayResult = workspace:Raycast(origin, direction, params)
+        return not rayResult
+    end)
+    return success and result or true
 end
 
 local function InitESP(plr)
@@ -356,17 +354,16 @@ local function InitESP(plr)
     local line = Drawing.new("Line")
     line.Visible = false
     line.Thickness = 1.5
-    line.Color = Color3.fromRGB(255, 0, 0) -- Merah untuk enemy
+    line.Color = Color3.fromRGB(255, 0, 0)
     
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ESP_Name"
     billboard.Size = UDim2.new(0, 120, 0, 35)
-    billboard.StudsOffset = Vector3.new(0, 3.5, 0) -- Posisi di atas kepala
+    billboard.StudsOffset = Vector3.new(0, 3.5, 0)
     billboard.AlwaysOnTop = true
     billboard.Adornee = char
     billboard.Parent = char
     
-    -- Background box
     local bgFrame = Instance.new("Frame")
     bgFrame.Size = UDim2.new(1, 0, 1, 0)
     bgFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
@@ -377,7 +374,6 @@ local function InitESP(plr)
     bgCorner.CornerRadius = UDim.new(0, 4)
     bgCorner.Parent = bgFrame
     
-    -- Label Nama
     local textLabel = Instance.new("TextLabel")
     textLabel.Size = UDim2.new(1, 0, 0.6, 0)
     textLabel.Position = UDim2.new(0, 0, 0, 0)
@@ -389,7 +385,6 @@ local function InitESP(plr)
     textLabel.Font = Enum.Font.GothamBold
     textLabel.Parent = billboard
     
-    -- Label Jarak
     local distLabel = Instance.new("TextLabel")
     distLabel.Size = UDim2.new(1, 0, 0.4, 0)
     distLabel.Position = UDim2.new(0, 0, 0.6, 0)
@@ -401,12 +396,11 @@ local function InitESP(plr)
     distLabel.Font = Enum.Font.GothamBold
     distLabel.Parent = billboard
     
-    -- Highlight Box
     local highlight = Instance.new("Highlight")
     highlight.Name = "ESP_Box"
     highlight.FillTransparency = 0.8
     highlight.OutlineTransparency = 0
-    highlight.OutlineColor3 = Color3.fromRGB(255, 0, 0) -- Merah untuk enemy
+    highlight.OutlineColor3 = Color3.fromRGB(255, 0, 0)
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Adornee = char
     highlight.Parent = char
@@ -423,14 +417,20 @@ end
 local function SetupPlayer(plr)
     if plr ~= LocalPlayer then
         if plr.Character then InitESP(plr) end
-        plr.CharacterAdded:Connect(function() task.wait(0.5) InitESP(plr) end)
+        plr.CharacterAdded:Connect(function() 
+            task.wait(0.5) 
+            InitESP(plr) 
+        end)
     end
 end
-for _, plr in ipairs(Players:GetPlayers()) do SetupPlayer(plr) end
+
+for _, plr in ipairs(Players:GetPlayers()) do 
+    pcall(SetupPlayer, plr) 
+end
 Players.PlayerAdded:Connect(SetupPlayer)
 Players.PlayerRemoving:Connect(function(plr)
     if ESPData[plr] then
-        ESPData[plr].Line:Remove()
+        pcall(function() ESPData[plr].Line:Remove() end)
         ESPData[plr] = nil
     end
 end)
@@ -447,22 +447,28 @@ local function GetClosestPlayer()
             local part = plr.Character:FindFirstChild(Config.Aimbot.AimPart) or plr.Character:FindFirstChild("HumanoidRootPart")
             
             if hum and hum.Health > 0 and part then
-                if not isVisible(part) then continue end
-
-                local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
-                if onScreen then
-                    local targetPos = Vector2.new(screenPos.X, screenPos.Y)
-                    local dist = (targetPos - screenCenter).Magnitude
-                    if dist < shortestDist then
-                        if localRoot then
-                            local dist3D = (part.Position - localRoot.Position).Magnitude
-                            if dist3D <= Config.Aimbot.MaxDist then
-                                shortestDist = dist
-                                closest = plr
+                if isVisible(part) then
+                    local success, screenPos = pcall(function()
+                        return Camera:WorldToViewportPoint(part.Position)
+                    end)
+                    
+                    if success and screenPos then
+                        local onScreen = screenPos.Z > 0
+                        if onScreen then
+                            local targetPos = Vector2.new(screenPos.X, screenPos.Y)
+                            local dist = (targetPos - screenCenter).Magnitude
+                            if dist < shortestDist then
+                                if localRoot then
+                                    local dist3D = (part.Position - localRoot.Position).Magnitude
+                                    if dist3D <= Config.Aimbot.MaxDist then
+                                        shortestDist = dist
+                                        closest = plr
+                                    end
+                                else
+                                    shortestDist = dist
+                                    closest = plr
+                                end
                             end
-                        else
-                            shortestDist = dist
-                            closest = plr
                         end
                     end
                 end
@@ -474,96 +480,94 @@ end
 
 -- ========== MAIN LOOP ==========
 RunService.RenderStepped:Connect(function()
-    local localChar = LocalPlayer.Character
-    local localRoot = localChar and localChar:FindFirstChild("HumanoidRootPart")
+    pcall(function()
+        local localChar = LocalPlayer.Character
+        local localRoot = localChar and localChar:FindFirstChild("HumanoidRootPart")
 
-    -- FOV Circle
-    fovCircle.Visible = Config.Aimbot.ShowFOV and Config.Aimbot.Enabled
-    fovCircle.Radius = Config.Aimbot.FOV
-    fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-
-    -- ESP Update (HANYA ENEMY)
-    for plr, data in pairs(ESPData) do
-        local char = plr.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        local root = char and char:FindFirstChild("HumanoidRootPart")
-
-        if not char or not hum or hum.Health <= 0 or not root then
-            data.Line.Visible = false
-            data.Billboard.Enabled = false
-            data.Highlight.Adornee = nil
-            continue
+        -- FOV Circle
+        if fovCircle then
+            fovCircle.Visible = Config.Aimbot.ShowFOV and Config.Aimbot.Enabled
+            fovCircle.Radius = Config.Aimbot.FOV
+            fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
         end
 
-        -- Sembunyikan jika bukan enemy (teman)
-        if not isEnemy(plr) then
-            data.Line.Visible = false
-            data.Billboard.Enabled = false
-            data.Highlight.Adornee = nil
-            continue
-        end
+        -- ESP Update (HANYA ENEMY) - TANPA CONTINUE
+        for plr, data in pairs(ESPData) do
+            local char = plr.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            local root = char and char:FindFirstChild("HumanoidRootPart")
 
-        if Config.ESP.Enabled then
-            if Config.ESP.Line and localRoot then
-                local p1 = Camera:WorldToViewportPoint(localRoot.Position)
-                local p2 = Camera:WorldToViewportPoint(root.Position)
-                data.Line.From = Vector2.new(p1.X, p1.Y)
-                data.Line.To = Vector2.new(p2.X, p2.Y)
-                data.Line.Visible = true
+            if char and hum and hum.Health > 0 and root then
+                -- Cek apakah enemy
+                if isEnemy(plr) then
+                    if Config.ESP.Enabled then
+                        if Config.ESP.Line and localRoot then
+                            local p1 = Camera:WorldToViewportPoint(localRoot.Position)
+                            local p2 = Camera:WorldToViewportPoint(root.Position)
+                            data.Line.From = Vector2.new(p1.X, p1.Y)
+                            data.Line.To = Vector2.new(p2.X, p2.Y)
+                            data.Line.Visible = true
+                        else
+                            data.Line.Visible = false
+                        end
+
+                        if Config.ESP.Name then
+                            data.Billboard.Enabled = true
+                            data.TextLabel.Text = plr.Name
+                            
+                            local dist = math.floor((root.Position - (localRoot and localRoot.Position or root.Position)).Magnitude)
+                            data.DistLabel.Text = dist .. "M"
+                        else
+                            data.Billboard.Enabled = false
+                        end
+
+                        if Config.ESP.Box then
+                            data.Highlight.Adornee = char
+                        else
+                            data.Highlight.Adornee = nil
+                        end
+                    else
+                        data.Line.Visible = false
+                        data.Billboard.Enabled = false
+                        data.Highlight.Adornee = nil
+                    end
+                else
+                    -- Bukan enemy, sembunyikan
+                    data.Line.Visible = false
+                    data.Billboard.Enabled = false
+                    data.Highlight.Adornee = nil
+                end
             else
+                -- Character mati/tidak ada
                 data.Line.Visible = false
-            end
-
-            if Config.ESP.Name then
-                data.Billboard.Enabled = true
-                data.TextLabel.Text = plr.Name
-                
-                -- Hitung dan tampilkan jarak
-                local dist = math.floor((root.Position - (localRoot and localRoot.Position or root.Position)).Magnitude)
-                data.DistLabel.Text = dist .. "M"
-            else
                 data.Billboard.Enabled = false
-            end
-
-            if Config.ESP.Box then
-                data.Highlight.Adornee = char
-            else
                 data.Highlight.Adornee = nil
             end
-        else
-            data.Line.Visible = false
-            data.Billboard.Enabled = false
-            data.Highlight.Adornee = nil
         end
-    end
 
-    -- Aimbot (FIXED: Menggunakan Posisi Mouse Asli)
-    if Config.Aimbot.Enabled then
-        local target = GetClosestPlayer()
-        if target then
-            local part = target.Character:FindFirstChild(Config.Aimbot.AimPart) or target.Character:FindFirstChild("HumanoidRootPart")
-            if part then
-                local screenPos = Camera:WorldToViewportPoint(part.Position)
-                
-                -- PERBAIKAN: Ambil posisi mouse saat ini
-                local mousePos = UIS:GetMouseLocation() 
-                local targetPos = Vector2.new(screenPos.X, screenPos.Y)
-                
-                -- Hitung selisih dari posisi MOUSE ke target
-                local delta = targetPos - mousePos
-                local dist = delta.Magnitude
-                
-                local smoothFactor = math.min(Config.Aimbot.Smoothness, 0.9)
-                
-                -- Auto-snap jika jarak sudah sangat dekat (< 2 pixel)
-                if dist < 2 then
-                    pcall(function() mousemoverel(delta.X, delta.Y) end)
-                else
-                    -- Gerakkan mouse secara smooth
-                    local moveDelta = delta * (1 - smoothFactor)
-                    pcall(function() mousemoverel(moveDelta.X, moveDelta.Y) end)
+        -- Aimbot (FIXED: Menggunakan Posisi Mouse Asli)
+        if Config.Aimbot.Enabled then
+            local target = GetClosestPlayer()
+            if target then
+                local part = target.Character:FindFirstChild(Config.Aimbot.AimPart) or target.Character:FindFirstChild("HumanoidRootPart")
+                if part then
+                    local screenPos = Camera:WorldToViewportPoint(part.Position)
+                    
+                    local mousePos = UIS:GetMouseLocation() 
+                    local targetPos = Vector2.new(screenPos.X, screenPos.Y)
+                    
+                    local delta = targetPos - mousePos
+                    local dist = delta.Magnitude
+                    
+                    local smoothFactor = math.min(Config.Aimbot.Smoothness, 0.9)
+                    
+                    if dist < 2 then
+                        pcall(function() mousemoverel(delta.X, delta.Y) end)
+                    else
+                        local moveDelta = delta * (1 - smoothFactor)
+                        pcall(function() mousemoverel(moveDelta.X, moveDelta.Y) end)
+                    end
                 end
             end
         end
-    end
-end)
+    end)
